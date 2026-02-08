@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repertório de Cavaco - Interativo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        .tom-C { border-color: #3b82f6; background-color: #eff6ff; color: #1e40af; }
+        .tom-D { border-color: #ef4444; background-color: #fef2f2; color: #991b1b; }
+        .tom-E { border-color: #22c55e; background-color: #f0fdf4; color: #166534; }
+        .tom-F { border-color: #a855f7; background-color: #faf5ff; color: #6b21a8; }
+        .tom-G { border-color: #eab308; background-color: #fefce8; color: #854d0e; }
+        .tom-A { border-color: #f97316; background-color: #fff7ed; color: #9a3412; }
+        .tom-B { border-color: #ec4899; background-color: #fdf2f8; color: #9d174d; }
+        .tom-default { border-color: #64748b; background-color: #f8fafc; color: #1e293b; }
+    </style>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('repertorioApp', () => ({
+                sets: [
+                    { id: 1, tom: 'D', musicas: ['Vou botar seu nome na macumba', 'Quem é ela', 'Irene'] },
+                    { id: 2, tom: 'D', musicas: ['Moleque atrevido', 'Faixa amarela'] },
+                    { id: 3, tom: 'F', musicas: ['Tá escrito', 'Brincadeira tem hora', 'Batucada dos nossos tantãs'] },
+                    { id: 4, tom: 'G', musicas: ['Conselho', 'Clareou'] },
+                    { id: 5, tom: 'C', musicas: ['O show tem que continuar', 'O Queiroz', 'Cohab city'] },
+                    { id: 6, tom: 'C', musicas: ['Coração radiante', 'Preciso te amar', 'Jogo de sedução'] },
+                    { id: 7, tom: 'Cm', musicas: ['Essência da paixão'] },
+                    { id: 8, tom: 'Gm', musicas: ['Deixa alagar'] },
+                    { id: 9, tom: 'Dm', musicas: ['Zé do caroço', 'Identidade'] }
+                ],
+                editingId: null,
+                tempData: { tom: '', musicasText: '' },
+
+                init() {
+                    const saved = localStorage.getItem('cavaco_repertorio');
+                    if (saved) {
+                        try {
+                            this.sets = JSON.parse(saved);
+                        } catch (e) {
+                            console.error("Erro ao carregar dados salvos", e);
+                        }
+                    }
+                    this.$watch('sets', value => {
+                        localStorage.setItem('cavaco_repertorio', JSON.stringify(value));
+                    });
+                },
+
+                addSet() {
+                    const newId = Date.now();
+                    const newSet = { id: newId, tom: 'C', musicas: ['Nova Música'] };
+                    this.sets.push(newSet);
+                    this.startEdit(newSet);
+                },
+
+                remove(id) {
+                    if (confirm('Deseja eliminar este bloco?')) {
+                        this.sets = this.sets.filter(s => s.id !== id);
+                    }
+                },
+
+                startEdit(set) {
+                    this.editingId = set.id;
+                    this.tempData.tom = set.tom;
+                    this.tempData.musicasText = set.musicas.join(' / ');
+                },
+
+                saveEdit() {
+                    const index = this.sets.findIndex(s => s.id === this.editingId);
+                    if (index !== -1) {
+                        this.sets[index].tom = this.tempData.tom.toUpperCase();
+                        this.sets[index].musicas = this.tempData.musicasText
+                            .split('/')
+                            .map(m => m.trim())
+                            .filter(m => m !== '');
+                    }
+                    this.editingId = null;
+                },
+
+                move(index, direction) {
+                    const target = index + direction;
+                    if (target < 0 || target >= this.sets.length) return;
+                    const newSets = [...this.sets];
+                    const temp = newSets[index];
+                    newSets[index] = newSets[target];
+                    newSets[target] = temp;
+                    this.sets = newSets;
+                },
+
+                getTomClass(tom) {
+                    if (!tom) return 'tom-default';
+                    const base = tom.replace('m', '').toUpperCase();
+                    const validToms = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+                    return validToms.includes(base) ? `tom-${base}` : 'tom-default';
+                }
+            }));
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900" x-data="repertorioApp()">
+
+    <div class="max-w-4xl mx-auto p-4 md:p-8">
+        <!-- Cabeçalho -->
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold flex items-center gap-3">
+                    <i class="fa-solid fa-guitar text-amber-500"></i>
+                    Repertório de Cavaco
+                </h1>
+                <p class="text-slate-500 italic">Gestão interativa de pot-pourris por tom</p>
+            </div>
+            <button 
+                @click="addSet()"
+                class="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full font-bold shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"
+            >
+                <i class="fa-solid fa-plus"></i> Novo Bloco
+            </button>
+        </header>
+
+        <!-- Lista de Músicas -->
+        <div class="space-y-4">
+            <template x-for="(set, index) in sets" :key="set.id">
+                <div 
+                    class="group border-l-8 rounded-lg shadow-sm bg-white overflow-hidden transition-all"
+                    :class="getTomClass(set.tom)"
+                >
+                    <div class="p-4 flex items-center gap-4">
+                        <!-- Ordenação -->
+                        <div class="flex flex-col text-slate-300 group-hover:text-slate-400 transition-colors">
+                            <button @click="move(index, -1)" :disabled="index === 0" class="hover:text-amber-500 disabled:opacity-0">
+                                <i class="fa-solid fa-chevron-up"></i>
+                            </button>
+                            <button @click="move(index, 1)" :disabled="index === sets.length - 1" class="hover:text-amber-500 disabled:opacity-0">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                        </div>
+
+                        <!-- Modo Visualização -->
+                        <div x-show="editingId !== set.id" class="flex flex-1 items-center gap-4">
+                            <div class="w-12 h-12 shrink-0 flex items-center justify-center rounded-full bg-white border-2 border-current font-black text-lg shadow-inner" x-text="set.tom"></div>
+                            <div class="flex-1">
+                                <div class="flex flex-wrap gap-x-2 gap-y-1 items-center font-medium">
+                                    <template x-for="(musica, mIdx) in set.musicas" :key="mIdx">
+                                        <div class="flex items-center gap-2">
+                                            <span x-text="musica"></span>
+                                            <span x-show="mIdx < set.musicas.length - 1" class="text-slate-300 font-normal">/</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button @click="startEdit(set)" class="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button @click="remove(set.id)" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Modo Edição -->
+                        <div x-show="editingId === set.id" x-cloak class="flex-1 flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="w-full md:w-24">
+                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Tom</label>
+                                <input type="text" x-model="tempData.tom" class="w-full p-2 border rounded uppercase focus:ring-2 focus:ring-amber-500 outline-none">
+                            </div>
+                            <div class="flex-1 w-full">
+                                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Músicas (use / para separar)</label>
+                                <input type="text" x-model="tempData.musicasText" class="w-full p-2 border rounded focus:ring-2 focus:ring-amber-500 outline-none">
+                            </div>
+                            <div class="flex gap-2 w-full md:w-auto">
+                                <button @click="saveEdit()" class="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white p-2.5 rounded-lg px-4 shadow-sm">
+                                    <i class="fa-solid fa-check mr-1"></i> Salvar
+                                </button>
+                                <button @click="editingId = null" class="flex-1 md:flex-none bg-slate-200 hover:bg-slate-300 text-slate-700 p-2.5 rounded-lg px-4">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Estado Vazio -->
+        <div x-show="sets.length === 0" class="text-center py-20 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400">
+            <i class="fa-solid fa-music text-4xl mb-4 block"></i>
+            <p>Seu repertório está vazio. Clique em "Novo Bloco" para começar.</p>
+        </div>
+
+        <footer class="mt-12 pt-8 border-t border-slate-200 text-center text-slate-400 text-sm">
+            <p>Os dados são guardados automaticamente no seu navegador.</p>
+            <p class="mt-1">Dica: Use a barra " / " para separar músicas no mesmo bloco.</p>
+        </footer>
+    </div>
+
+</body>
+</html>
